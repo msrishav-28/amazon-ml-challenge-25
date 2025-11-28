@@ -38,46 +38,43 @@ venv.bak/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
+# Keep notebooks for documentation
 
-# Data files
-data/
+# Data files (large datasets only)
+data/*.csv
+data/images/
+data/*.pkl
+data/*.pickle
 !data/.gitkeep
-*.csv
-*.pkl
-*.pickle
 
-# Model files
-models/
+# Model files (trained models only, not config)
+models/*.pt
+models/*.pth
+models/*.h5
+models/*.ckpt
+models/*.cbm
 !models/.gitkeep
-*.pt
-*.pth
-*.h5
-*.ckpt
-*.txt
-*.json
-*.cbm
 
-# Checkpoints
-checkpoints/
+# Checkpoints (model checkpoints only)
+checkpoints/*.pt
+checkpoints/*.pth
 !checkpoints/.gitkeep
 
-# Predictions
-predictions/
+# Predictions (prediction files only)
+predictions/*.npy
+predictions/*.csv
 !predictions/.gitkeep
 
-# Logs
-logs/
+# Logs (log files only)
+logs/*.log
 !logs/.gitkeep
-*.log
 
-# Images
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
+# Images (downloaded product images only, keep docs images)
+data/images/*.jpg
+data/images/*.jpeg
+data/images/*.png
+checkpoints/*.jpg
+checkpoints/*.png
 
 # OS
 .DS_Store
