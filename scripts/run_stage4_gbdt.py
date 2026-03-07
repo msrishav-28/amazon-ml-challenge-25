@@ -26,7 +26,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import PATHS, TRAIN_CONFIG, GBDT_CONFIG
 from src.training.train_gbdt import (
-    train_lightgbm, train_xgboost, train_catboost, train_gbdt_models
+    train_lightgbm, train_xgboost, train_catboost, train_all_gbdt_models
 )
 from src.utils.metrics import calculate_smape, evaluate_predictions
 from src.utils.checkpoint import CheckpointManager
@@ -76,10 +76,14 @@ def prepare_data(train_df, test_df, train_features, test_features, val_size=0.1)
         random_state=42
     )
     
+    # Select only numeric columns to avoid string column crash
+    numeric_cols = train_features.select_dtypes(include=[np.number, bool]).columns.tolist()
+    logger.info(f"  Numeric feature columns: {len(numeric_cols)} / {train_features.shape[1]} total")
+    
     # Extract features and targets
-    X_train = train_features.iloc[train_idx].values
-    X_val = train_features.iloc[val_idx].values
-    X_test = test_features.values
+    X_train = train_features.iloc[train_idx][numeric_cols].values.astype(np.float64)
+    X_val = train_features.iloc[val_idx][numeric_cols].values.astype(np.float64)
+    X_test = test_features[numeric_cols].values.astype(np.float64)
     
     y_train = train_df.iloc[train_idx]['price'].values
     y_val = train_df.iloc[val_idx]['price'].values
@@ -92,10 +96,10 @@ def prepare_data(train_df, test_df, train_features, test_features, val_size=0.1)
     logger.info(f"  X_val: {X_val.shape}")
     logger.info(f"  X_test: {X_test.shape}")
     
-    # Handle NaN values
-    X_train = np.nan_to_num(X_train, nan=0.0)
-    X_val = np.nan_to_num(X_val, nan=0.0)
-    X_test = np.nan_to_num(X_test, nan=0.0)
+    # Handle NaN/inf values
+    X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+    X_val = np.nan_to_num(X_val, nan=0.0, posinf=0.0, neginf=0.0)
+    X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
     
     data = {
         'X_train': X_train,
@@ -105,7 +109,7 @@ def prepare_data(train_df, test_df, train_features, test_features, val_size=0.1)
         'y_val': y_val,
         'y_train_log': y_train_log,
         'y_val_log': y_val_log,
-        'feature_names': train_features.columns.tolist(),
+        'feature_names': numeric_cols,
         'train_df': train_df.iloc[train_idx].reset_index(drop=True),
         'val_df': train_df.iloc[val_idx].reset_index(drop=True),
         'test_df': test_df
@@ -180,15 +184,13 @@ Examples:
         logger.info("TRAINING GBDT MODELS")
         logger.info("=" * 60)
         
-        results = train_gbdt_models(
+        results = train_all_gbdt_models(
             X_train=data['X_train'],
-            y_train=data['y_train'],
+            y_train=data['y_train_log'],
             X_val=data['X_val'],
-            y_val=data['y_val'],
-            X_test=data['X_test'],
-            config=config,
+            y_val=data['y_val_log'],
             optimize=not args.no_optimize,
-            models_to_train=args.models
+            use_custom_objectives=True
         )
         
         # Evaluate and save predictions
@@ -202,11 +204,14 @@ Examples:
         all_val_preds = {}
         all_test_preds = {}
         
-        for model_name, model_results in results.items():
-            val_preds = model_results['val_preds']
-            test_preds = model_results['test_preds']
+        for model_name, (model, model_metrics) in results.items():
+            # Generate predictions in log space, then convert to price space
+            val_preds_log = model.predict(data['X_val'])
+            test_preds_log = model.predict(data['X_test'])
+            val_preds = np.expm1(val_preds_log)
+            test_preds = np.expm1(test_preds_log)
             
-            # Calculate metrics
+            # Calculate metrics in price space
             val_smape = calculate_smape(data['y_val'], val_preds)
             logger.info(f"\n{model_name}:")
             logger.info(f"  Validation SMAPE: {val_smape:.4f}")
@@ -227,8 +232,8 @@ Examples:
             )
             
             # Save feature importance (if available)
-            if 'feature_importance' in model_results:
-                importance = model_results['feature_importance']
+            if hasattr(model, 'feature_importances_'):
+                importance = model.feature_importances_
                 importance_dict = dict(zip(data['feature_names'], importance))
                 plot_feature_importance(
                     importance_dict,
@@ -252,9 +257,12 @@ Examples:
         test_pred_df.to_csv(predictions_dir / 'gbdt_test_predictions.csv', index=False)
         
         # Save best params
-        best_params = {name: res.get('best_params', {}) for name, res in results.items()}
+        best_params = {}
+        for name, (mdl, met) in results.items():
+            if hasattr(mdl, 'get_params'):
+                best_params[name] = mdl.get_params()
         with open(PATHS['models_dir'] / 'gbdt_best_params.json', 'w') as f:
-            json.dump(best_params, f, indent=2)
+            json.dump(best_params, f, indent=2, default=str)
         
         logger.info(f"\nPredictions saved to {predictions_dir}")
         
@@ -263,8 +271,8 @@ Examples:
         logger.info("STAGE 4 SUMMARY")
         logger.info("=" * 60)
         
-        for model_name, model_results in results.items():
-            val_smape = calculate_smape(data['y_val'], model_results['val_preds'])
+        for model_name in results:
+            val_smape = calculate_smape(data['y_val'], all_val_preds[model_name])
             logger.info(f"  {model_name}: SMAPE = {val_smape:.4f}")
         
         logger.info("\n" + "=" * 60)

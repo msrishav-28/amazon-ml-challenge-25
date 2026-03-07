@@ -173,11 +173,18 @@ Examples:
         # Try to load training predictions
         train_preds_dict = load_train_predictions()
         
-        # If no training predictions, use validation predictions (for demo)
+        # If no training predictions, fail with actionable error
         if not train_preds_dict:
-            logger.warning("No training predictions found, using validation predictions")
-            train_preds_dict = val_preds_dict
-            y_train = y_val
+            raise RuntimeError(
+                "\n\nNo OOF (out-of-fold) training predictions found.\n"
+                "These are required to train the stacking meta-learner without data leakage.\n\n"
+                "To fix:\n"
+                "  1. Re-run Stage 3 with: python scripts/run_stage3_neural_net.py --save-oof\n"
+                "  2. Re-run Stage 4 with: python scripts/run_stage4_gbdt.py --save-oof\n"
+                "  3. Then re-run Stage 5.\n\n"
+                "Alternative: Use --simple-only flag to skip stacking and use weighted average.\n"
+                "  python scripts/run_stage5_ensemble.py --simple-only"
+            )
         
         # Base model performance
         logger.info("\n" + "=" * 60)

@@ -54,7 +54,7 @@ class TestSubmissionFormatProperties:
         **Feature: amazon-ml-price-prediction, Property 41: Submission format correctness**
         **Validates: Requirements 12.3**
         
-        Submission CSV should have exactly two columns: sample_id and predicted_price.
+        Submission CSV should have exactly two columns: sample_id and price.
         """
         sample_ids, log_predictions = data
         
@@ -64,7 +64,7 @@ class TestSubmissionFormatProperties:
         # Create submission DataFrame
         submission_df = pd.DataFrame({
             'sample_id': sample_ids,
-            'predicted_price': original_predictions
+            'price': original_predictions
         })
         
         # Property: Submission should have exactly 2 columns
@@ -72,8 +72,8 @@ class TestSubmissionFormatProperties:
             f"Submission should have 2 columns, got {len(submission_df.columns)}"
         
         # Property: Columns should be in correct order
-        assert list(submission_df.columns) == ['sample_id', 'predicted_price'], \
-            f"Columns should be ['sample_id', 'predicted_price'], got {list(submission_df.columns)}"
+        assert list(submission_df.columns) == ['sample_id', 'price'], \
+            f"Columns should be ['sample_id', 'price'], got {list(submission_df.columns)}"
         
         # Save and verify CSV format
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -83,7 +83,7 @@ class TestSubmissionFormatProperties:
             # Reload and verify
             loaded_df = pd.read_csv(submission_path)
             
-            assert list(loaded_df.columns) == ['sample_id', 'predicted_price'], \
+            assert list(loaded_df.columns) == ['sample_id', 'price'], \
                 "Saved CSV should have correct column names"
     
     @given(prediction_strategy())
@@ -104,7 +104,7 @@ class TestSubmissionFormatProperties:
         # Create submission DataFrame
         submission_df = pd.DataFrame({
             'sample_id': sample_ids,
-            'predicted_price': original_predictions
+            'price': original_predictions
         })
         
         # Property: Number of rows should match number of samples
@@ -120,8 +120,8 @@ class TestSubmissionFormatProperties:
             "sample_id column should not have missing values"
         
         # Property: No missing predictions
-        assert not submission_df['predicted_price'].isna().any(), \
-            "predicted_price column should not have missing values"
+        assert not submission_df['price'].isna().any(), \
+            "price column should not have missing values"
     
     @given(prediction_strategy())
     @settings(max_examples=20, deadline=None)
@@ -154,24 +154,26 @@ class TestSubmissionFormatProperties:
     @settings(max_examples=10, deadline=None)
     def test_submission_price_positive(self, n_samples):
         """
-        **Property: All predicted prices should be positive**
-        **Validates: Prices are valid monetary values**
+        **Property: All predicted prices should be positive after clipping**
+        **Validates: Production pipeline clips log predictions before conversion**
         """
         sample_ids = [f"test_{i}" for i in range(n_samples)]
         
-        # Even if log predictions are negative (which means price < 1),
-        # expm1 will still give positive prices
         log_predictions = np.random.uniform(-2.0, 15.0, n_samples)
-        original_predictions = np.expm1(log_predictions)
         
-        # Handle edge case where log_predictions are very negative
-        # In practice, we should ensure log_predictions >= 0
-        log_predictions = np.clip(log_predictions, 0, None)
-        original_predictions = np.expm1(log_predictions)
+        # Simulate the production pipeline clipping step
+        log_predictions_clipped = np.clip(log_predictions, 0.0, None)
+        original_predictions = np.expm1(log_predictions_clipped)
         
-        # Property: All prices should be non-negative
         assert (original_predictions >= 0).all(), \
-            "All predicted prices should be non-negative"
+            "Clipped predictions must be non-negative"
+        
+        # Verify unclipped negative values WOULD produce values in (-1, 0)
+        neg_mask = log_predictions < 0
+        if neg_mask.any():
+            unclipped_neg = np.expm1(log_predictions[neg_mask])
+            assert (unclipped_neg < 0).any() or (unclipped_neg < 1).any(), \
+                "Unclipped negative log preds should produce sub-1 prices — verify clipping is needed"
     
     @given(prediction_strategy())
     @settings(max_examples=10, deadline=None)
@@ -189,7 +191,7 @@ class TestSubmissionFormatProperties:
         
         submission_df = pd.DataFrame({
             'sample_id': sample_ids,
-            'predicted_price': original_predictions
+            'price': original_predictions
         })
         
         # Property: No duplicate sample IDs

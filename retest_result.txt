@@ -1,0 +1,61 @@
+RETURN CODE: 1
+
+============================= test session starts =============================
+collecting ... collected 4 items
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency PASSED [ 25%]
+tests/test_integration.py::TestSmallDatasetPipeline::test_mini_training_loop PASSED [ 50%]
+tests/test_integration.py::TestSmallDatasetPipeline::test_prediction_to_submission_integration FAILED [ 75%]
+tests/test_performance.py::TestProcessingSpeed::test_model_inference_speed FAILED [100%]
+================================== FAILURES ===================================
+_____ TestSmallDatasetPipeline.test_prediction_to_submission_integration ______
+..\..\..\AppData\Roaming\Python\Python314\site-packages\pandas\core\indexes\base.py:3641: in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/index.pyx:168: in pandas._libs.index.IndexEngine.get_loc
+    ???
+pandas/_libs/index.pyx:197: in pandas._libs.index.IndexEngine.get_loc
+    ???
+pandas/_libs/hashtable_class_helper.pxi:7668: in pandas._libs.hashtable.PyObjectHashTable.get_item
+    ???
+pandas/_libs/hashtable_class_helper.pxi:7676: in pandas._libs.hashtable.PyObjectHashTable.get_item
+    ???
+E   KeyError: 'predicted_price'
+The above exception was the direct cause of the following exception:
+tests\test_integration.py:302: in test_prediction_to_submission_integration
+    assert not submission_df['predicted_price'].isna().any()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\pandas\core\frame.py:4378: in __getitem__
+    indexer = self.columns.get_loc(key)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\pandas\core\indexes\base.py:3648: in get_loc
+    raise KeyError(key) from err
+E   KeyError: 'predicted_price'
+_______________ TestProcessingSpeed.test_model_inference_speed ________________
+tests\test_performance.py:299: in test_model_inference_speed
+    assert samples_per_sec >= 1, f"Model inference too slow: {samples_per_sec:.1f} samples/sec"
+E   AssertionError: Model inference too slow: 0.9 samples/sec
+E   assert 0.8623357788567159 >= 1
+---------------------------- Captured stdout call -----------------------------
+Model initialized:
+  Total parameters: 151,365,891
+  Trainable parameters: 149,959,419
+  Trainable ratio: 99.07%
+  Fusion type: Cross-Attention
+Model inference speed: 0.9 samples/sec
+---------------------------- Captured stderr call -----------------------------
+============================== warnings summary ===============================
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+    warnings.warn(
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_integration.py::TestSmallDatasetPipeline::test_prediction_to_submission_integration
+FAILED tests/test_performance.py::TestProcessingSpeed::test_model_inference_speed
+============= 2 failed, 2 passed, 9 warnings in 142.52s (0:02:22) =============

@@ -161,7 +161,7 @@ def plot_predictions(
     ax2 = fig.add_subplot(gs[1])
     
     residuals = y_pred - y_true
-    percent_error = 100 * (y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred) + 1e-10)
+    percent_error = 100 * (y_pred - y_true) / (np.abs(y_true) + 1e-10)
     
     ax2.scatter(y_true_pos, percent_error, alpha=0.5, s=10, c='steelblue')
     ax2.axhline(y=0, color='red', linestyle='--', linewidth=2)
@@ -219,7 +219,7 @@ def plot_error_distribution(
     
     # Calculate various error metrics
     abs_error = np.abs(y_pred - y_true)
-    percent_error = 100 * (y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred) + 1e-10)
+    percent_error = 100 * (y_pred - y_true) / (np.abs(y_true) + 1e-10)
     smape_error = 100 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred) + 1e-10)
     
     # Absolute error distribution

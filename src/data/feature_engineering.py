@@ -318,29 +318,28 @@ class FeatureEngineer:
         
         features_list = []
         
-        # Extract features for each row
-        for idx, row in df.iterrows():
-            text = row['catalog_content']
-            
-            # Extract all feature types
-            ipq_features = self.extract_ipq_features(text)
-            text_stats = self.extract_text_statistics(text)
-            keyword_features = self.extract_keyword_features(text)
-            brand_features = self.extract_brand_features(text)
-            
-            # Combine all features
-            combined_features = {
-                'sample_id': row.get('sample_id', idx),
-                **ipq_features,
-                **text_stats,
-                **keyword_features,
-                **brand_features
-            }
-            
-            features_list.append(combined_features)
+        # Extract features using vectorized apply (much faster than iterrows)
+        texts = df['catalog_content'].fillna('')
+        sample_ids = df.get('sample_id', pd.Series(range(len(df))))
         
-        # Create features DataFrame
-        features_df = pd.DataFrame(features_list)
+        ipq_results = texts.apply(self.extract_ipq_features)
+        text_results = texts.apply(self.extract_text_statistics)
+        keyword_results = texts.apply(self.extract_keyword_features)
+        brand_results = texts.apply(self.extract_brand_features)
+        
+        ipq_df = pd.json_normalize(ipq_results)
+        text_df = pd.json_normalize(text_results)
+        keyword_df = pd.json_normalize(keyword_results)
+        brand_df = pd.json_normalize(brand_results)
+        
+        # Combine all features
+        features_df = pd.concat([
+            pd.DataFrame({'sample_id': sample_ids.values}),
+            ipq_df.reset_index(drop=True),
+            text_df.reset_index(drop=True),
+            keyword_df.reset_index(drop=True),
+            brand_df.reset_index(drop=True),
+        ], axis=1)
         
         # Add TF-IDF features
         if fit_tfidf:

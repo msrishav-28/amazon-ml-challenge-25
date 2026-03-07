@@ -96,6 +96,19 @@ class CheckpointManager:
         try:
             torch.save(checkpoint_data, checkpoint_path)
             
+            # Write lightweight metadata sidecar (no tensors)
+            meta = {
+                'stage': stage,
+                'checkpoint_type': checkpoint_type,
+                'timestamp': timestamp,
+                'metric': metric,
+                'epoch': state.get('epoch'),
+                'step': state.get('step'),
+            }
+            meta_path = checkpoint_path.with_suffix('.json')
+            with open(meta_path, 'w') as f:
+                json.dump(meta, f)
+            
             # Get file size
             size_mb = checkpoint_path.stat().st_size / (1024 * 1024)
             logger.info(f"Saved {checkpoint_type} checkpoint: {checkpoint_path.name} ({size_mb:.1f} MB)")
@@ -253,6 +266,7 @@ class CheckpointManager:
     def list_checkpoints(self, stage: Optional[str] = None) -> list[Tuple[Path, Dict[str, Any]]]:
         """
         List all available checkpoints with their metadata.
+        Read metadata from sidecar .json files — no tensor loading.
         
         Args:
             stage: Stage identifier to filter by. If None, lists all checkpoints.
@@ -260,6 +274,34 @@ class CheckpointManager:
         Returns:
             List of tuples (checkpoint_path, metadata_dict)
         """
+        # Prefer sidecar .json files (no tensor loading)
+        json_files = list(self.checkpoint_dir.glob("*.json"))
+        
+        if json_files:
+            result = []
+            for meta_path in json_files:
+                try:
+                    ckpt_path = meta_path.with_suffix('.pt')
+                    if not ckpt_path.exists():
+                        continue
+                    with open(meta_path) as f:
+                        meta = json.load(f)
+                    if stage is not None and meta.get('stage') != stage:
+                        continue
+                    metadata = {
+                        'stage': meta.get('stage'),
+                        'checkpoint_type': meta.get('checkpoint_type'),
+                        'timestamp': meta.get('timestamp'),
+                        'metric': meta.get('metric'),
+                        'size_mb': ckpt_path.stat().st_size / (1024 * 1024)
+                    }
+                    result.append((ckpt_path, metadata))
+                except Exception as e:
+                    logger.warning(f"Failed to read metadata {meta_path.name}: {e}")
+            result.sort(key=lambda x: x[1].get('timestamp', ''), reverse=True)
+            return result
+        
+        # Fallback: load .pt files if no sidecar files exist (legacy checkpoints)
         checkpoint_files = list(self.checkpoint_dir.glob("*.pt"))
         
         if stage is not None:
@@ -268,13 +310,11 @@ class CheckpointManager:
                 if f.name.startswith(f"{stage}_")
             ]
         
-        # Sort by modification time (newest first)
         checkpoint_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
         
         result = []
         for ckpt_path in checkpoint_files:
             try:
-                # Load just the metadata (not the full state)
                 checkpoint_data = torch.load(ckpt_path, map_location='cpu')
                 metadata = {
                     'stage': checkpoint_data.get('stage'),
@@ -302,6 +342,10 @@ class CheckpointManager:
         try:
             if checkpoint_path.exists():
                 checkpoint_path.unlink()
+                # Also delete sidecar .json metadata if present
+                meta_path = checkpoint_path.with_suffix('.json')
+                if meta_path.exists():
+                    meta_path.unlink()
                 logger.info(f"Deleted checkpoint: {checkpoint_path.name}")
                 return True
             else:

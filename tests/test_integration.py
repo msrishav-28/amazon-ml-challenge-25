@@ -70,7 +70,7 @@ class TestEndToEndPipeline:
         assert smape <= 200, "SMAPE should be <= 200"
         
         # Evaluate predictions
-        eval_results = evaluate_predictions(y_pred, y_true, in_log_space=True)
+        eval_results = evaluate_predictions(y_true, y_pred, split_name='test', in_log_space=True)
         
         assert 'smape' in eval_results
         assert 'rmse' in eval_results
@@ -293,14 +293,14 @@ class TestSmallDatasetPipeline:
         # Create submission DataFrame
         submission_df = pd.DataFrame({
             'sample_id': sample_ids,
-            'predicted_price': original_predictions
+            'price': original_predictions
         })
         
         # Validate submission format
-        assert list(submission_df.columns) == ['sample_id', 'predicted_price']
+        assert list(submission_df.columns) == ['sample_id', 'price']
         assert len(submission_df) == 10
-        assert not submission_df['predicted_price'].isna().any()
-        assert (submission_df['predicted_price'] > 0).all()
+        assert not submission_df['price'].isna().any()
+        assert (submission_df['price'] > 0).all()
         
         # Test saving
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -309,7 +309,7 @@ class TestSmallDatasetPipeline:
             
             # Reload and verify
             loaded = pd.read_csv(submission_path)
-            assert list(loaded.columns) == ['sample_id', 'predicted_price']
+            assert list(loaded.columns) == ['sample_id', 'price']
 
 
 if __name__ == '__main__':

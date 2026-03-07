@@ -23,12 +23,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import PATHS, DATA_CONFIG, FEATURE_CONFIG
-from src.data.feature_engineering import (
-    ProductFeatureEngineer,
-    extract_ipq_features,
-    extract_text_statistics,
-    extract_keyword_features
-)
+from src.data.feature_engineering import FeatureEngineer
 from src.utils.checkpoint import CheckpointManager
 
 # Configure logging
@@ -78,17 +73,15 @@ def engineer_features(train_df: pd.DataFrame, test_df: pd.DataFrame,
     logger.info("FEATURE ENGINEERING PIPELINE")
     logger.info("=" * 60)
     
-    engineer = ProductFeatureEngineer(
-        max_tfidf_features=FEATURE_CONFIG.get('tfidf_features', 100)
-    )
+    engineer = FeatureEngineer()
     
     # Fit on training data
     logger.info("\nFitting feature engineering pipeline...")
-    train_features = engineer.fit_transform(train_df, 'catalog_content')
+    train_features = engineer.engineer_features(train_df, fit_tfidf=True)
     
     # Transform test data
     logger.info("\nTransforming test data...")
-    test_features = engineer.transform(test_df, 'catalog_content')
+    test_features = engineer.engineer_features(test_df, fit_tfidf=False)
     
     # Log feature information
     logger.info(f"\nFeature engineering complete:")

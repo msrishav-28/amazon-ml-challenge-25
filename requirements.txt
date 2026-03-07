@@ -38,4 +38,5 @@ pyyaml>=6.0.1
 requests>=2.31.0
 
 # Parameter Efficient Fine-tuning
-peft>=0.7.1
+peft>=0.7.1,<0.10.0
+accelerate>=0.25.0

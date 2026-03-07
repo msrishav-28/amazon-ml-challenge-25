@@ -29,7 +29,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from config import PATHS, TRAIN_CONFIG, MODEL_CONFIG
 from src.data.dataset import AmazonMLDataset, get_dataloader
 from src.models.multimodal import OptimizedMultimodalModel
-from src.training.train_neural_net import train_neural_network, predict, predict_with_tta
+from src.training.train_neural_net import train_neural_network, predict_with_tta
 from src.utils.metrics import calculate_smape, evaluate_predictions
 from src.utils.checkpoint import CheckpointManager
 from src.utils.visualization import plot_training_curves, plot_predictions
@@ -71,6 +71,11 @@ def create_datasets(train_df, test_df, train_features, test_features, val_size=0
     """Create train/val/test datasets"""
     logger.info("\nCreating datasets...")
     
+    from transformers import AutoTokenizer
+    
+    # Create tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_CONFIG['text_config']['model_name'])
+    
     # Split training data
     train_idx, val_idx = train_test_split(
         range(len(train_df)),
@@ -87,29 +92,29 @@ def create_datasets(train_df, test_df, train_features, test_features, val_size=0
     logger.info(f"  Train split: {len(train_split_df)}")
     logger.info(f"  Val split: {len(val_split_df)}")
     
-    # Create datasets
+    # Create datasets using correct constructor args
     train_dataset = AmazonMLDataset(
-        df=train_split_df,
+        raw_df=train_split_df,
         features_df=train_split_features,
-        images_dir=PATHS['images_dir'],
-        is_train=True,
-        max_length=MODEL_CONFIG['text_config']['max_length']
+        image_dir=PATHS['images_dir'],
+        tokenizer=tokenizer,
+        mode='train'
     )
     
     val_dataset = AmazonMLDataset(
-        df=val_split_df,
+        raw_df=val_split_df,
         features_df=val_split_features,
-        images_dir=PATHS['images_dir'],
-        is_train=False,
-        max_length=MODEL_CONFIG['text_config']['max_length']
+        image_dir=PATHS['images_dir'],
+        tokenizer=tokenizer,
+        mode='val'
     )
     
     test_dataset = AmazonMLDataset(
-        df=test_df,
+        raw_df=test_df,
         features_df=test_features,
-        images_dir=PATHS['images_dir'],
-        is_train=False,
-        max_length=MODEL_CONFIG['text_config']['max_length']
+        image_dir=PATHS['images_dir'],
+        tokenizer=tokenizer,
+        mode='test'
     )
     
     return train_dataset, val_dataset, test_dataset, train_split_df, val_split_df
@@ -217,15 +222,13 @@ Examples:
             batch_size=args.batch_size
         )
         
-        # Create config
-        config = {
-            **TRAIN_CONFIG,
-            'epochs': args.epochs,
-            'batch_size': args.batch_size,
-            'learning_rate': args.lr,
-            'device': str(device),
-            'tabular_dim': train_features.shape[1]
-        }
+        # Derive actual number of numeric tabular features
+        numeric_cols = train_features.select_dtypes(include=[np.number, bool]).columns
+        # Exclude metadata columns
+        metadata_cols = {'sample_id', 'price'}
+        numeric_feature_cols = [c for c in numeric_cols if c not in metadata_cols]
+        actual_tabular_dim = len(numeric_feature_cols)
+        logger.info(f"  Actual numeric tabular features: {actual_tabular_dim}")
         
         if args.predict_only:
             # Load model and predict
@@ -236,24 +239,19 @@ Examples:
             model_path = args.model_path or PATHS['models_dir'] / 'neural_net_best.pt'
             
             model = OptimizedMultimodalModel(
-                text_model_name=MODEL_CONFIG['text_config']['model_name'],
-                image_model_name=MODEL_CONFIG['image_config']['model_name'],
-                tabular_dim=config['tabular_dim'],
+                num_tabular_features=actual_tabular_dim,
                 hidden_dim=MODEL_CONFIG['hidden_dim'],
-                use_gradient_checkpointing=True
             )
             
-            checkpoint = torch.load(model_path, map_location=device)
+            checkpoint = torch.load(model_path, map_location=device, weights_only=False)
             model.load_state_dict(checkpoint['model_state_dict'])
             model = model.to(device)
             
-            # Generate predictions
-            if args.no_tta:
-                val_preds = predict(model, val_loader, device, config)
-                test_preds = predict(model, test_loader, device, config)
-            else:
-                val_preds = predict_with_tta(model, val_loader, device, config)
-                test_preds = predict_with_tta(model, test_loader, device, config)
+            # Generate predictions with TTA
+            val_preds = predict_with_tta(model, val_loader, device)
+            test_preds = predict_with_tta(model, test_loader, device)
+            
+            results = {}
             
         else:
             # Train model
@@ -261,55 +259,62 @@ Examples:
             logger.info("TRAINING MODE")
             logger.info("=" * 60)
             
-            model, history, val_preds, test_preds = train_neural_network(
-                config=config,
+            model, results = train_neural_network(
                 train_loader=train_loader,
                 val_loader=val_loader,
-                test_loader=test_loader,
-                resume_from=args.resume
+                num_tabular_features=actual_tabular_dim,
+                resume=(args.resume is not None),
+                use_lora=True,
             )
             
+            # Generate predictions using trained model
+            model.eval()
+            val_preds = predict_with_tta(model, val_loader, device)
+            test_preds = predict_with_tta(model, test_loader, device)
+            
             # Save training curves
-            if history.get('train_losses'):
+            if results.get('train_losses'):
                 plot_training_curves(
-                    train_losses=history['train_losses'],
-                    val_losses=history.get('val_losses'),
-                    val_smapes=history.get('val_smapes'),
+                    train_losses=results['train_losses'],
+                    val_losses=results.get('val_losses'),
+                    val_smapes=results.get('val_smapes'),
                     save_path=PATHS['logs_dir'] / 'neural_net_training_curves.png',
                     title='Neural Network Training Curves'
                 )
         
-        # Evaluate
+        # Evaluate — model outputs are in log1p space, convert to price space
         y_val = val_split_df['price'].values
-        val_smape = calculate_smape(y_val, val_preds)
+        val_preds_price = np.expm1(val_preds)
+        test_preds_price = np.expm1(test_preds)
+        val_smape = calculate_smape(y_val, val_preds_price)
         
         logger.info("\n" + "=" * 60)
         logger.info("VALIDATION RESULTS")
         logger.info("=" * 60)
         
-        metrics = evaluate_predictions(y_val, val_preds, 'validation')
+        metrics = evaluate_predictions(y_val, val_preds_price, 'validation')
         for key, value in metrics.items():
             logger.info(f"  {key}: {value:.4f}")
         
-        # Save predictions
+        # Save predictions (in price space for consistency with GBDT predictions)
         predictions_dir = PATHS['predictions_dir']
         predictions_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save as numpy arrays
-        np.save(predictions_dir / 'nn_val_preds.npy', val_preds)
-        np.save(predictions_dir / 'nn_test_preds.npy', test_preds)
+        # Save as numpy arrays (price space)
+        np.save(predictions_dir / 'nn_val_preds.npy', val_preds_price)
+        np.save(predictions_dir / 'nn_test_preds.npy', test_preds_price)
         
         # Also save full predictions with sample_ids
         val_pred_df = pd.DataFrame({
             'sample_id': val_split_df['sample_id'],
             'true_price': y_val,
-            'predicted_price': val_preds
+            'predicted_price': val_preds_price
         })
         val_pred_df.to_csv(predictions_dir / 'nn_val_predictions.csv', index=False)
         
         test_pred_df = pd.DataFrame({
             'sample_id': test_df['sample_id'],
-            'predicted_price': test_preds
+            'predicted_price': test_preds_price
         })
         test_pred_df.to_csv(predictions_dir / 'nn_test_predictions.csv', index=False)
         
@@ -317,7 +322,7 @@ Examples:
         
         # Plot predictions
         plot_predictions(
-            y_val, val_preds,
+            y_val, val_preds_price,
             split_name='Validation',
             save_path=PATHS['logs_dir'] / 'neural_net_predictions.png',
             smape=val_smape

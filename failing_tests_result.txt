@@ -1,0 +1,180 @@
+RETURN CODE: 1
+
+============================= test session starts =============================
+collecting ... collected 4 items
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency FAILED [ 25%]
+tests/test_integration.py::TestSmallDatasetPipeline::test_mini_training_loop FAILED [ 50%]
+tests/test_integration.py::TestSmallDatasetPipeline::test_prediction_to_submission_integration FAILED [ 75%]
+tests/test_performance.py::TestProcessingSpeed::test_model_inference_speed FAILED [100%]
+================================== FAILURES ===================================
+_ TestMultimodalModelProperties.test_property_15_forward_pass_shape_consistency _
+tests\test_model_properties.py:38: in test_property_15_forward_pass_shape_consistency
+    @settings(max_examples=5, deadline=None)
+               ^^^^^^^
+tests\test_model_properties.py:63: in test_property_15_forward_pass_shape_consistency
+    output = model(input_ids, attention_mask, image, tabular)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\models\multimodal.py:522: in forward
+    text_feat = self.text_proj(text_hidden)  # (batch, hidden_dim)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\container.py:253: in forward
+    input = module(input)
+            ^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\linear.py:134: in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: mat1 and mat2 must have the same dtype, but got Half and Float
+E   Falsifying example: test_property_15_forward_pass_shape_consistency(
+E       self=<tests.test_model_properties.TestMultimodalModelProperties object at 0x0000020FD28F47D0>,
+E       batch_size=1,
+E   )
+---------------------------- Captured stdout call -----------------------------
+Model initialized:
+  Total parameters: 156,781,827
+  Trainable parameters: 155,375,355
+  Trainable ratio: 99.10%
+  Fusion type: Cross-Attention
+Model initialized:
+  Total parameters: 156,781,827
+  Trainable parameters: 155,375,355
+  Trainable ratio: 99.10%
+  Fusion type: Cross-Attention
+---------------------------- Captured stderr call -----------------------------
+------------------------------ Captured log call ------------------------------
+______________ TestSmallDatasetPipeline.test_mini_training_loop _______________
+tests\test_integration.py:269: in test_mini_training_loop
+    predictions = model(input_ids, attention_mask, image, tabular)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\models\multimodal.py:522: in forward
+    text_feat = self.text_proj(text_hidden)  # (batch, hidden_dim)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\container.py:253: in forward
+    input = module(input)
+            ^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\linear.py:134: in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: mat1 and mat2 must have the same dtype, but got Half and Float
+---------------------------- Captured stdout call -----------------------------
+Model initialized:
+  Total parameters: 151,360,771
+  Trainable parameters: 149,954,299
+  Trainable ratio: 99.07%
+  Fusion type: Cross-Attention
+---------------------------- Captured stderr call -----------------------------
+_____ TestSmallDatasetPipeline.test_prediction_to_submission_integration ______
+..\..\..\AppData\Roaming\Python\Python314\site-packages\pandas\core\indexes\base.py:3641: in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/index.pyx:168: in pandas._libs.index.IndexEngine.get_loc
+    ???
+pandas/_libs/index.pyx:197: in pandas._libs.index.IndexEngine.get_loc
+    ???
+pandas/_libs/hashtable_class_helper.pxi:7668: in pandas._libs.hashtable.PyObjectHashTable.get_item
+    ???
+pandas/_libs/hashtable_class_helper.pxi:7676: in pandas._libs.hashtable.PyObjectHashTable.get_item
+    ???
+E   KeyError: 'predicted_price'
+The above exception was the direct cause of the following exception:
+tests\test_integration.py:302: in test_prediction_to_submission_integration
+    assert not submission_df['predicted_price'].isna().any()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\pandas\core\frame.py:4378: in __getitem__
+    indexer = self.columns.get_loc(key)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\pandas\core\indexes\base.py:3648: in get_loc
+    raise KeyError(key) from err
+E   KeyError: 'predicted_price'
+_______________ TestProcessingSpeed.test_model_inference_speed ________________
+tests\test_performance.py:281: in test_model_inference_speed
+    _ = model(input_ids, attention_mask, image, tabular)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\models\multimodal.py:522: in forward
+    text_feat = self.text_proj(text_hidden)  # (batch, hidden_dim)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\container.py:253: in forward
+    input = module(input)
+            ^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1776: in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\module.py:1787: in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Roaming\Python\Python314\site-packages\torch\nn\modules\linear.py:134: in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: mat1 and mat2 must have the same dtype, but got Half and Float
+---------------------------- Captured stdout call -----------------------------
+Model initialized:
+  Total parameters: 151,365,891
+  Trainable parameters: 149,959,419
+  Trainable ratio: 99.07%
+  Fusion type: Cross-Attention
+---------------------------- Captured stderr call -----------------------------
+============================== warnings summary ===============================
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+    warnings.warn(
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_model_properties.py::TestMultimodalModelProperties::test_property_15_forward_pass_shape_consistency
+FAILED tests/test_integration.py::TestSmallDatasetPipeline::test_mini_training_loop
+FAILED tests/test_integration.py::TestSmallDatasetPipeline::test_prediction_to_submission_integration
+FAILED tests/test_performance.py::TestProcessingSpeed::test_model_inference_speed
+======================= 4 failed, 9 warnings in 32.09s ========================

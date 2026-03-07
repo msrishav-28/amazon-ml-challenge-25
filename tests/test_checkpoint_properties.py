@@ -8,6 +8,7 @@ and checkpoint cleanup policy as specified in the design document.
 import pytest
 import tempfile
 import shutil
+import time
 from pathlib import Path
 from collections import OrderedDict
 from hypothesis import given, strategies as st, settings
@@ -288,6 +289,7 @@ class TestCheckpointProperties:
                 checkpoint_type='quick'
             )
             checkpoints.append(checkpoint_path)
+            time.sleep(0.05)  # ensure distinct timestamps
         
         # Get latest checkpoint
         latest = self.manager.get_latest_checkpoint(stage=stage)

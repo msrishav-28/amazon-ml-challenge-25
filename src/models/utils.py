@@ -59,6 +59,7 @@ class ModelEMA:
         self.decay = decay
         self.shadow: Dict[str, torch.Tensor] = {}
         self.backup: Dict[str, torch.Tensor] = {}
+        self.step: int = 0
         
         # Initialize shadow parameters
         self._initialize_shadow()
@@ -69,25 +70,29 @@ class ModelEMA:
             if param.requires_grad:
                 self.shadow[name] = param.data.clone()
     
+    def _effective_decay(self) -> float:
+        """Bias-corrected decay: ramps from 0 to self.decay over first ~1000 steps."""
+        return min(self.decay, (1.0 + self.step) / (10.0 + self.step))
+    
     def update(self) -> None:
         """
         Update shadow parameters with EMA of current model parameters.
         
         Should be called after each optimization step.
+        Uses bias-corrected decay that ramps up from 0 to target decay.
         
         Formula: shadow = decay * shadow + (1 - decay) * param
         
         Validates: Property 20 (EMA update consistency)
         """
+        decay = self._effective_decay()
+        self.step += 1
         with torch.no_grad():
             for name, param in self.model.named_parameters():
                 if param.requires_grad:
                     if name in self.shadow:
                         # EMA update: new_avg = decay * old_avg + (1 - decay) * current
-                        self.shadow[name] = (
-                            self.decay * self.shadow[name] +
-                            (1.0 - self.decay) * param.data
-                        )
+                        self.shadow[name].mul_(decay).add_(param.data, alpha=1.0 - decay)
                     else:
                         # New parameter, just copy
                         self.shadow[name] = param.data.clone()

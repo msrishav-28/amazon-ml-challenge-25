@@ -95,9 +95,10 @@ class TestEMAProperties:
                 shadow_param = ema.shadow[name]
                 initial_param = initial_shadow[name]
                 
-                # New shadow should be between initial and model parameter
-                # shadow = decay * initial + (1 - decay) * model
-                expected = decay * initial_param + (1 - decay) * param
+                # EMA uses bias-corrected warmup: effective_decay = min(decay, (1+step)/(10+step))
+                # At step=0 (first update): effective_decay = min(decay, 1/10)
+                effective_decay = min(decay, (1.0 + 0) / (10.0 + 0))
+                expected = effective_decay * initial_param + (1 - effective_decay) * param
                 
                 assert torch.allclose(shadow_param, expected, atol=1e-6), \
                     f"EMA update not consistent for {name}"

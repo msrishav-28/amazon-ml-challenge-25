@@ -194,7 +194,13 @@ class ResumableImageDownloader:
         while retry_count < max_retries:
             try:
                 # Download image
-                response = requests.get(url, timeout=timeout, stream=True)
+                headers = {
+                    'User-Agent': (
+                        'Mozilla/5.0 (compatible; AmazonMLChallenge/1.0; '
+                        '+https://github.com/msrishav-28/amazon-ml-challenge-25)'
+                    )
+                }
+                response = requests.get(url, timeout=timeout, stream=True, headers=headers)
                 response.raise_for_status()
                 
                 # Save image

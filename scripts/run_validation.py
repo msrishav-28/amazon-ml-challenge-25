@@ -285,14 +285,14 @@ def validate_metrics():
     targets = np.array([110, 190, 310, 380, 520])
     
     # Calculate SMAPE
-    smape = calculate_smape(predictions, targets)
+    smape = calculate_smape(targets, predictions)
     logger.info(f"  SMAPE: {smape:.4f}%")
     
     # Verify SMAPE range
     assert 0 <= smape <= 200, f"SMAPE should be in [0, 200], got {smape}"
     
     # Full evaluation
-    metrics = evaluate_predictions(predictions, targets)
+    metrics = evaluate_predictions(targets, predictions)
     logger.info(f"  All metrics: {metrics}")
     
     # Test perfect predictions
@@ -367,7 +367,7 @@ def validate_submission_format(test_df: pd.DataFrame):
     # Generate mock predictions
     n_test = len(test_df)
     predictions_log = np.random.uniform(3, 8, n_test)  # Log prices
-    predictions = np.exp(predictions_log)  # Convert to original space
+    predictions = np.expm1(predictions_log)  # Convert to original space
     
     # Create submission DataFrame
     submission = pd.DataFrame({
@@ -449,8 +449,8 @@ def run_mini_pipeline(train_df: pd.DataFrame, test_df: pd.DataFrame, features: d
     y_val_orig = np.expm1(y_val)
     
     # Calculate SMAPE
-    train_smape = calculate_smape(train_pred_orig, y_train_orig)
-    val_smape = calculate_smape(val_pred_orig, y_val_orig)
+    train_smape = calculate_smape(y_train_orig, train_pred_orig)
+    val_smape = calculate_smape(y_val_orig, val_pred_orig)
     
     logger.info(f"\n  Results:")
     logger.info(f"    Train SMAPE: {train_smape:.2f}%")

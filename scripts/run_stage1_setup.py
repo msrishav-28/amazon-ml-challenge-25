@@ -20,7 +20,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import PATHS, DATA_CONFIG
-from src.data.downloader import DataDownloader
+from src.data.downloader import ResumableImageDownloader
 
 # Configure logging
 logging.basicConfig(
@@ -71,23 +71,25 @@ def verify_environment():
 def download_data(skip_images: bool = False, max_images: int = None):
     """Download data from Kaggle and images from URLs"""
     
-    downloader = DataDownloader(
-        data_dir=PATHS['data_dir'],
-        raw_dir=PATHS['raw_dir'],
-        images_dir=PATHS['images_dir']
-    )
+    import pandas as pd
     
     # Download Kaggle data
     logger.info("\n" + "=" * 60)
     logger.info("DOWNLOADING KAGGLE DATA")
     logger.info("=" * 60)
     
-    kaggle_success = downloader.download_kaggle_data()
+    # Kaggle data must be downloaded manually
+    raw_dir = PATHS['raw_dir']
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    train_path = raw_dir / 'train.csv'
+    test_path = raw_dir / 'test.csv'
     
-    if not kaggle_success:
-        logger.warning("Kaggle download failed. Please download manually:")
-        logger.warning(f"  kaggle competitions download -c {DATA_CONFIG['kaggle_competition']}")
-        logger.warning(f"  Extract to: {PATHS['raw_dir']}")
+    if not train_path.exists() or not test_path.exists():
+        logger.warning("Kaggle data not found. Please download manually:")
+        logger.warning(f"  kaggle competitions download -c {DATA_CONFIG.get('kaggle_competition', 'amazon-ml-challenge-2025')}")
+        logger.warning(f"  Extract to: {raw_dir}")
+    else:
+        logger.info(f"  Kaggle data found at {raw_dir}")
     
     # Download images
     if not skip_images:
@@ -95,27 +97,34 @@ def download_data(skip_images: bool = False, max_images: int = None):
         logger.info("DOWNLOADING IMAGES")
         logger.info("=" * 60)
         
-        train_path = PATHS['raw_dir'] / 'train.csv'
-        test_path = PATHS['raw_dir'] / 'test.csv'
+        downloader = ResumableImageDownloader(
+            image_dir=PATHS['images_dir'],
+            timeout=DATA_CONFIG.get('download_timeout', 10),
+            max_retries=3
+        )
         
         if train_path.exists():
             logger.info("Downloading training images...")
-            downloader.download_images_from_csv(
-                train_path,
-                image_column='image_link',
-                id_column='sample_id',
-                max_images=max_images
+            train_df = pd.read_csv(train_path)
+            if max_images is not None:
+                train_df = train_df.head(max_images)
+            downloader.download_batch(
+                train_df,
+                batch_size=DATA_CONFIG.get('download_batch_size', 5000),
+                max_workers=DATA_CONFIG.get('download_max_workers', 40)
             )
         else:
             logger.warning(f"Training file not found: {train_path}")
         
         if test_path.exists():
             logger.info("Downloading test images...")
-            downloader.download_images_from_csv(
-                test_path,
-                image_column='image_link',
-                id_column='sample_id',
-                max_images=max_images
+            test_df = pd.read_csv(test_path)
+            if max_images is not None:
+                test_df = test_df.head(max_images)
+            downloader.download_batch(
+                test_df,
+                batch_size=DATA_CONFIG.get('download_batch_size', 5000),
+                max_workers=DATA_CONFIG.get('download_max_workers', 40)
             )
         else:
             logger.warning(f"Test file not found: {test_path}")

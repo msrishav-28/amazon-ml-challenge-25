@@ -90,6 +90,9 @@ class CrossModalAttention(nn.Module):
         """
         batch_size = query.shape[0]
         
+        # Save raw inputs for residual connections (pre-LN pattern)
+        residual = query
+        
         # Layer normalization
         query = self.norm_q(query)
         key_value = self.norm_kv(key_value)
@@ -126,8 +129,8 @@ class CrossModalAttention(nn.Module):
         attn_output = self.out_proj(attn_output)
         attn_output = self.dropout(attn_output)
         
-        # Residual connection
-        output = query + attn_output
+        # Residual connection (use raw input, not normed)
+        output = residual + attn_output
         
         # Feed-forward with residual
         output = output + self.ffn(self.ffn_norm(output))
@@ -516,7 +519,7 @@ class OptimizedMultimodalModel(nn.Module):
         )
         # Use [CLS] token representation
         text_hidden = text_outputs.last_hidden_state[:, 0, :]  # (batch, text_hidden_dim)
-        text_feat = self.text_proj(text_hidden)  # (batch, hidden_dim)
+        text_feat = self.text_proj(text_hidden.float())  # (batch, hidden_dim)
         
         # =================================================================
         # Encode Image

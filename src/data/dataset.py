@@ -63,16 +63,18 @@ class AmazonMLDataset(Dataset):
                 f"Data merge failed: expected {len(raw_df)} rows, got {len(self.data)}"
             )
         
-        # Get feature columns (exclude metadata columns)
+        # Get feature columns (exclude metadata columns, keep only numeric)
         metadata_cols = {'sample_id', 'catalog_content', 'image_link', 'price', 'potential_brand'}
-        self.feature_cols = [col for col in features_df.columns if col not in metadata_cols]
+        candidate_cols = [col for col in features_df.columns if col not in metadata_cols]
+        self.feature_cols = features_df[candidate_cols].select_dtypes(
+            include=[np.number, bool]
+        ).columns.tolist()
         
-        # Setup image transformations
+        # Setup image transformations (no flips/rotations for product images)
         self.train_transform = transforms.Compose([
             transforms.Resize((self.config.IMAGE_SIZE, self.config.IMAGE_SIZE)),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=10),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, hue=0.0),
+            transforms.RandomGrayscale(p=0.05),
             transforms.ToTensor(),
             transforms.Normalize(mean=self.config.IMAGE_MEAN, std=self.config.IMAGE_STD)
         ])
@@ -146,9 +148,10 @@ class AmazonMLDataset(Dataset):
         else:
             image_tensor = self.eval_transform(image)
         
-        # Extract tabular features and fill NaN with 0
-        tabular_features = row[self.feature_cols].values.astype(np.float32)
-        tabular_features = np.nan_to_num(tabular_features, nan=0.0)
+        # Extract tabular features and fill NaN/inf with 0
+        tabular_features = row[self.feature_cols].values
+        tabular_features = pd.to_numeric(tabular_features, errors='coerce').astype(np.float32)
+        tabular_features = np.nan_to_num(tabular_features, nan=0.0, posinf=0.0, neginf=0.0)
         tabular_tensor = torch.from_numpy(tabular_features)
         
         # Prepare output dictionary
